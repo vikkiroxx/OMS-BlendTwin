@@ -1,0 +1,11 @@
+# Render Blueprint - BlendTwin Trend Query Workbench
+# After connecting your GitHub repo, Render will use this to create the web service.
+# Set environment variables (DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, etc.) in the Render dashboard.
+
+services:
+  - type: web
+    name: blendtwin-trend-workbench
+    runtime: docker
+    # Uses ./Dockerfile by default; start command is CMD in Dockerfile (python run.py)
+    # Render sets PORT automatically; run.py reads it from the environment.
+    healthCheckPath: /
