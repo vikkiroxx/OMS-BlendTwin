@@ -78,6 +78,27 @@ docker-compose up -d
 
 Set `DB_HOST`, `DB_USER`, `DB_PASSWORD` in `.env` to point to your MySQL instance.
 
+## Deploy on Render
+
+The repo includes a [Render](https://render.com) Blueprint so you can deploy with one click.
+
+1. **Push this repo to GitHub** (already done if you used the push steps above).
+
+2. **Create a Blueprint on Render**
+   - Go to [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
+   - Connect your GitHub account and select the `OMS-BlendTwin-3` repo.
+   - Render will detect `render.yaml` at the repo root. Click **Apply**.
+
+3. **Set environment variables**
+   - Open the **oms-blendtwin** web service → **Environment**.
+   - Add at least: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (and `DB_CHARSET` if needed).
+   - If your MySQL is behind SSH, set `USE_SSH_TUNNEL=true` and the `SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`, etc. (see `OMS-BlendTwin/.env.example`).
+
+4. **Deploy**
+   - Save; Render will build and deploy. Your app will be at `https://oms-blendtwin.onrender.com` (or your custom domain).
+
+The app reads `PORT` from the environment (Render sets this automatically).
+
 ## Project Structure
 
 ```

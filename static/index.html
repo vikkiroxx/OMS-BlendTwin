@@ -1,14 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BlendTwin Trend Query Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
+
 <body>
+  <!-- Toast container for success/error messages -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
   <div class="app">
     <header class="header">
       <h1>BlendTwin Trend Query Workbench</h1>
@@ -21,10 +29,14 @@
     <main class="main">
       <section class="panel trends-panel">
         <h2>Trends</h2>
-        <select id="trend-select" class="trend-select">
-          <option value="">-- Select a trend --</option>
-        </select>
+        <div class="trend-select-group">
+          <select id="trend-select" class="trend-select">
+            <option value="">-- Select a trend --</option>
+          </select>
+          <button id="btn-delete" class="btn btn-danger" disabled>Delete</button>
+        </div>
         <div id="trend-info" class="trend-info"></div>
+        <button id="btn-settings" class="btn btn-link hidden">Edit Settings</button>
       </section>
 
       <section class="panel params-panel">
@@ -38,7 +50,12 @@
         <h2>SQL Editor</h2>
         <textarea id="sql-editor"></textarea>
         <div class="sql-actions">
-          <button id="btn-execute" class="btn btn-primary">Execute</button>
+          <div class="sql-left">
+            <button id="btn-execute" class="btn btn-primary">Execute</button>
+          </div>
+          <div class="sql-right">
+            <button id="btn-builder" class="btn btn-secondary">Visual Query Builder</button>
+          </div>
         </div>
       </section>
 
@@ -56,30 +73,136 @@
       </section>
 
       <section class="panel plot-panel">
-        <h2>Plot</h2>
-        <div id="plot-container" class="plot-container">
-          <canvas id="plot-canvas"></canvas>
+        <h2>Plots</h2>
+        <div class="plot-actions">
+          <button id="btn-add-plot" class="btn btn-secondary btn-sm" disabled>+ Add Plot</button>
         </div>
-        <div id="plot-empty" class="muted">Plot will appear after successful query execution</div>
+        <div id="plots-canvas" class="plots-canvas"></div>
+        <div id="plot-empty" class="muted">Execute a query, then add plots to visualize. Select plot type, data columns, and legends.</div>
       </section>
     </main>
   </div>
 
   <!-- Modals -->
-  <div id="modal-new" class="modal hidden">
-    <div class="modal-content">
-      <h3>Create New Trend</h3>
+  <div id="modal-add-plot" class="modal hidden">
+    <div class="modal-content modal-plot">
+      <h3>Add Plot</h3>
+      <p class="plot-hint muted">Columns are from your query result. Add more columns in your SQL SELECT to see them here.</p>
       <div class="form-group">
-        <label>Trend Code</label>
-        <input type="text" id="new-trend-code" placeholder="e.g. TI-01">
+        <label>Plot Title</label>
+        <input type="text" id="plot-title" placeholder="e.g. Tank Volume vs Flow">
+      </div>
+      <div class="form-group">
+        <label>Plot Type</label>
+        <select id="plot-type">
+          <option value="line">Line Graph</option>
+          <option value="bar">Bar Chart</option>
+          <option value="pie">Pie Chart</option>
+        </select>
+      </div>
+      <div class="form-group plot-config-line">
+        <label>X Axis Column</label>
+        <select id="plot-x-col"></select>
+      </div>
+      <div class="form-group plot-config-line">
+        <label>Series Mode</label>
+        <select id="plot-series-mode">
+          <option value="single">Single column</option>
+          <option value="series_col">By series column (long format)</option>
+          <option value="multi_col">Multiple columns (each as a line)</option>
+          <option value="custom">Custom – define each series (different X/Y per series)</option>
+        </select>
+      </div>
+      <div class="form-group plot-config-line plot-mode-single">
+        <label>Y Axis Column</label>
+        <select id="plot-y-col"></select>
+      </div>
+      <div class="form-group plot-config-line plot-mode-series hidden">
+        <label>Series Column <span class="muted">(column with labels like "Stream Quality", "Tank Quality - CSTR")</span></label>
+        <select id="plot-series-col">
+          <option value="">— Select —</option>
+        </select>
+      </div>
+      <div class="form-group plot-config-line plot-mode-multi hidden">
+        <label>Y Columns <span class="muted">(select multiple – each becomes a line)</span></label>
+        <div id="plot-y-cols-multi" class="plot-cols-checkboxes"></div>
+      </div>
+      <div class="form-group plot-config-line plot-mode-custom hidden">
+        <label>Series to plot <span class="muted">(each can have different X axis, Y axis, and legend label)</span></label>
+        <div class="plot-series-header">
+          <span>Legend label</span>
+          <span>X column</span>
+          <span>Y column</span>
+          <span></span>
+        </div>
+        <div id="plot-series-list" class="plot-series-list"></div>
+        <button type="button" id="btn-add-series" class="btn btn-secondary btn-sm">+ Add Series</button>
+      </div>
+      <div class="form-group plot-config-pie hidden">
+        <label>Label Column</label>
+        <select id="plot-pie-label-col"></select>
+      </div>
+      <div class="form-group plot-config-pie hidden">
+        <label>Value Column</label>
+        <select id="plot-pie-value-col"></select>
+      </div>
+      <div class="form-group">
+        <label>X Axis Label <span class="muted">(legend on chart)</span></label>
+        <input type="text" id="plot-x-label" placeholder="e.g. Blend Cycle (5 min)">
+      </div>
+      <div class="form-group">
+        <label>Y Axis Label <span class="muted">(legend on chart)</span></label>
+        <input type="text" id="plot-y-label" placeholder="e.g. Value (bbl)">
+      </div>
+      <div class="modal-actions">
+        <button id="btn-cancel-plot" class="btn btn-secondary">Cancel</button>
+        <button id="btn-save-plot" class="btn btn-primary">Add Plot</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-new" class="modal hidden">
+    <div class="modal-content modal-tall">
+      <h3>Create New Trend</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Trend Code</label>
+          <input type="text" id="new-trend-code" placeholder="e.g. TI-01">
+        </div>
+        <div class="form-group">
+          <label>Template ID <span class="muted">(optional, defaults to Trend Code)</span></label>
+          <input type="text" id="new-template-id" placeholder="Same as Trend Code">
+        </div>
       </div>
       <div class="form-group">
         <label>Trend Name</label>
         <input type="text" id="new-trend-name" placeholder="e.g. Tank Inventory Trend">
       </div>
       <div class="form-group">
+        <label>Ref ID <span class="muted">(optional)</span></label>
+        <input type="text" id="new-refid" placeholder="Optional reference">
+      </div>
+      <div class="form-group">
         <label>SQL Template</label>
-        <textarea id="new-sql-template" rows="6" placeholder="SELECT cycleno, value, series FROM ... WHERE blendid = :blendid"></textarea>
+        <textarea id="new-sql-template" rows="6"
+          placeholder="SELECT cycleno, value, series FROM your_table WHERE BlendID = :blendid"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Trend Parameters <span class="muted">(BlendID is always included)</span></label>
+        <div id="new-params-list" class="params-list">
+          <div class="param-row param-row-locked">
+            <span class="param-name">BlendID</span>
+            <span class="param-badge">Default (required)</span>
+            <span class="param-locked">Cannot remove</span>
+          </div>
+        </div>
+        <div class="param-add-row">
+          <select id="new-param-name">
+            <option value="">— Select parameter —</option>
+          </select>
+          <button type="button" id="btn-add-param" class="btn btn-add-param">+ Add Parameter</button>
+        </div>
+        <div id="new-params-added" class="params-added-list"></div>
       </div>
       <div class="modal-actions">
         <button id="btn-cancel-new" class="btn btn-secondary">Cancel</button>
@@ -88,9 +211,76 @@
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="/static/app.js"></script>
+  <!-- Builder Modal -->
+  <div id="modal-builder" class="modal hidden">
+    <div class="modal-content modal-wide modal-tall">
+      <h3>Advanced Visual SQL Query Builder</h3>
+
+      <div class="builder-layout">
+        <div class="builder-sidebar">
+          <label>1. Select Tables</label>
+          <div id="builder-tables-list" class="builder-list-box">
+            <!-- JS will populate with checkboxes -->
+          </div>
+        </div>
+
+        <div class="builder-main">
+          <div class="builder-tabs">
+            <button class="tab-btn active" data-tab="tab-columns">2. Select Columns</button>
+            <button class="tab-btn" data-tab="tab-joins">3. Define Joins</button>
+          </div>
+
+          <div id="tab-columns" class="tab-content">
+            <div id="builder-columns-container" class="builder-list-box tall">
+              <p class="muted">Select tables on the left to see columns</p>
+            </div>
+          </div>
+
+          <div id="tab-joins" class="tab-content hidden">
+            <div id="builder-joins-container">
+              <div id="joins-list"></div>
+              <button id="btn-add-join" class="btn btn-secondary btn-sm">+ Add Join Condition</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group builder-preview-group">
+        <label>SQL Preview</label>
+        <textarea id="builder-sql-preview" rows="4" readonly></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-cancel-builder" class="btn btn-secondary">Cancel</button>
+        <button id="btn-insert-sql" class="btn btn-primary">Insert into Editor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal (Params Management) -->
+  <div id="modal-settings" class="modal hidden">
+    <div class="modal-content">
+      <h3>Trend Settings</h3>
+      <div class="form-group">
+        <label>Trend Name</label>
+        <input type="text" id="settings-trend-name">
+      </div>
+      <div class="form-group">
+        <label>Manage Parameter Labels</label>
+        <div id="settings-params-list" class="settings-params-list">
+          <!-- JS will populate -->
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-cancel-settings" class="btn btn-secondary">Cancel</button>
+        <button id="btn-save-settings" class="btn btn-primary">Apply</button>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/app.js"></script>
 </body>
+
 </html>

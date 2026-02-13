@@ -21,6 +21,8 @@ from app.services import (
     update_template,
     execute_query,
     get_schema,
+    get_trend_params_list,
+    delete_template,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -53,10 +55,21 @@ class ExecuteRequest(BaseModel):
     params: dict | None = None
 
 
+class TrendParameterCreate(BaseModel):
+    parameter: str
+    type: str = "string"
+    required: str = "Y"
+    multi: str = "N"
+    default: str | None = None
+
+
 class CreateTrendRequest(BaseModel):
     trend_code: str
     trend_name: str
     sql_template: str
+    refid: str | None = None
+    template_id: str | None = None  # If different from trend_code
+    parameters: list[TrendParameterCreate] | None = None  # BlendID added by default
 
 
 class UpdateTrendRequest(BaseModel):
@@ -117,9 +130,17 @@ def api_get_trend_by_code(trend_code: str, db: Session = Depends(get_db)):
 
 @app.post("/api/trends")
 def api_create_trend(req: CreateTrendRequest, db: Session = Depends(get_db)):
-    """Create new SQL template."""
+    """Create new SQL template with optional refid and parameters."""
     try:
-        trend = create_template(db, req.trend_code, req.trend_name, req.sql_template)
+        trend = create_template(
+            db,
+            trend_code=req.trend_code,
+            trend_name=req.trend_name,
+            sql_template=req.sql_template,
+            refid=req.refid,
+            template_id=req.template_id,
+            parameters=req.parameters,
+        )
         return trend
     except Exception as e:
         logger.exception("Create trend failed")
@@ -139,6 +160,21 @@ def api_update_trend(template_id: str, req: UpdateTrendRequest, db: Session = De
         raise
     except Exception as e:
         logger.exception("Update trend failed")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/trends/{template_id}")
+def api_delete_trend(template_id: str, db: Session = Depends(get_db)):
+    """Delete existing SQL template."""
+    try:
+        success = delete_template(db, template_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Trend not found")
+        return {"message": "Trend deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Delete trend failed")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -165,6 +201,17 @@ def api_schema(db: Session = Depends(get_db)):
         return get_schema(db)
     except Exception as e:
         logger.exception("Schema fetch failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/trend-params")
+def api_trend_params(db: Session = Depends(get_db)):
+    """Get list of allowed trend parameter names from trend_parms column or fallback."""
+    try:
+        params = get_trend_params_list(db)
+        return {"params": params}
+    except Exception as e:
+        logger.exception("Trend params fetch failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 

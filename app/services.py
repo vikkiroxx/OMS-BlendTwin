@@ -155,16 +155,11 @@ def execute_query(db: Session, sql: str, params: Optional[Dict[str, Any]] = None
         return {"rows": [], "columns": list(df.columns), "error": None}
 
     cols = list(df.columns)
-    # Flexible column check? For now stick to strict requirement or relax it?
-    # Keeping strict for now
+    # Flexible: allow any columns for multi-plot canvas; no strict cycleno/value/series requirement
     missing = REQUIRED_COLUMNS - set(c.lower() for c in cols)
     if missing:
-        # Fallback: if 3 columns, assume they are cycleno, value, series
-        if len(cols) == 3:
-             # Rename?
-             pass 
-        else:
-             return {"error": f"Result must include columns: cycleno, value, series. Missing: {missing}", "rows": [], "columns": cols}
+        # Still return data - frontend multi-plot builder will let user pick columns
+        pass
 
     # Sort by cycleno if present
     if "cycleno" in [c.lower() for c in cols]:
@@ -213,19 +208,61 @@ def _sync_parameters(db: Session, trend_id: str, sql: str):
     # For now, let's just keep them to be safe, or only add.
     # User might have manually added some that aren't in SQL yet.
 
-def create_template(db: Session, trend_code: str, trend_name: str, sql_template: str) -> Dict[str, Any]:
-    """Create new SQL template."""
+def create_template(
+    db: Session,
+    trend_code: str,
+    trend_name: str,
+    sql_template: str,
+    refid: Optional[str] = None,
+    template_id: Optional[str] = None,
+    parameters: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Create new SQL template with all fields and parameters."""
+    tid = template_id or trend_code
     t = SQLTemplate(
-        template_id=trend_code, 
-        trend_id=trend_code, 
-        trend_name=trend_name, 
-        sql_template=sql_template
+        template_id=tid,
+        trend_id=trend_code,
+        trend_name=trend_name,
+        sql_template=sql_template,
+        refid=refid,
     )
     db.add(t)
+    # Add BlendID as default (non-removable) + user-provided parameters
+    blendid_exists = False
+    for p in parameters or []:
+        pdict = p if isinstance(p, dict) else (p.model_dump() if hasattr(p, "model_dump") else dict(p))
+        param_name = (pdict.get("parameter") or "").strip()
+        if not param_name:
+            continue
+        if param_name.lower() == "blendid":
+            blendid_exists = True
+        _add_trend_parameter(db, trend_code, param_name, pdict)
+    if not blendid_exists:
+        _add_trend_parameter(db, trend_code, "blendid", {"type": "string", "required": "Y", "default": None})
+    # Sync any :param from SQL not already in params
     _sync_parameters(db, trend_code, sql_template)
     db.commit()
     db.refresh(t)
     return _template_to_dict(t, db)
+
+
+def _add_trend_parameter(db: Session, trend_id: str, param_name: str, p: Dict[str, Any]) -> None:
+    """Add or ensure a trend parameter exists."""
+    existing = db.query(TrendParameter).filter(
+        TrendParameter.trendid == trend_id,
+        TrendParameter.parameter == param_name,
+    ).first()
+    if existing:
+        return
+    new_p = TrendParameter(
+        trendid=trend_id,
+        parameter=param_name,
+        type=p.get("type") or "string",
+        required=p.get("required", "Y"),
+        multi=p.get("multi", "N"),
+        default=p.get("default"),
+    )
+    db.add(new_p)
 
 
 def update_template(db: Session, template_id: str, sql_template: str, trend_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -244,6 +281,33 @@ def update_template(db: Session, template_id: str, sql_template: str, trend_name
     return _template_to_dict(t, db)
 
 
+_trend_params_cache: Optional[tuple] = None  # (timestamp, list)
+
+
+def get_trend_params_list(db: Session) -> List[str]:
+    """
+    Fetch allowed trend parameter names from bts_DropDownList.trend_parms.
+    Results cached for 5 minutes.
+    """
+    import time
+    global _trend_params_cache
+    now = time.time()
+    if _trend_params_cache and (now - _trend_params_cache[0]) < 300:
+        return _trend_params_cache[1]
+
+    try:
+        result = db.execute(
+            text("SELECT DISTINCT trend_parms FROM bts_DropDownList WHERE trend_parms IS NOT NULL AND trend_parms != '' ORDER BY trend_parms")
+        ).fetchall()
+        params = [str(r[0]).strip() for r in result if r[0]]
+        _trend_params_cache = (now, params)
+        return params
+    except Exception as e:
+        logger.warning("Could not fetch trend_parms from bts_DropDownList: %s", e)
+        _trend_params_cache = (now, [])
+        return []
+
+
 def get_schema(db: Session) -> Dict[str, List[str]]:
     """Get table names and columns for query builder autocomplete."""
     result = {}
@@ -257,3 +321,18 @@ def get_schema(db: Session) -> Dict[str, List[str]]:
         logger.exception("Schema fetch failed")
         return {"error": str(e)}
     return result
+
+def delete_template(db: Session, template_id: str) -> bool:
+    """Delete SQL template and associated data."""
+    t = db.query(SQLTemplate).filter(SQLTemplate.template_id == template_id).first()
+    if not t:
+        return False
+    
+    # Delete associated parameters and plots
+    db.query(TrendParameter).filter(TrendParameter.trendid == t.trend_id).delete()
+    db.query(TrendPlot).filter(TrendPlot.trend_id == t.trend_id).delete()
+    
+    # Delete the template itself
+    db.delete(t)
+    db.commit()
+    return True

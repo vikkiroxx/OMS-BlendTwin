@@ -1,16 +1,23 @@
 :root {
-  --bg-dark: #f6f8fa;
+  --bg-dark: #f0f2f5;
   --bg-panel: #ffffff;
   --bg-input: #ffffff;
-  --border: #d0d7de;
-  --text: #1f2328;
-  --text-muted: #656d76;
+  --border: #e1e4e8;
+  --text: #24292f;
+  --text-muted: #57606a;
   --accent: #0969da;
   --accent-hover: #0550ae;
   --success: #1a7f37;
+  --success-bg: #dafbe1;
   --error: #cf222e;
-  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --shadow: 0 1px 3px rgba(31, 35, 40, 0.12), 0 8px 24px rgba(66, 74, 83, 0.12);
+  --error-bg: #ffebe9;
+  --font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --shadow: 0 1px 3px rgba(31, 35, 40, 0.07), 0 8px 24px rgba(66, 74, 83, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --danger: #cf222e;
+  --danger-hover: #a40e26;
+  --radius: 8px;
+  --radius-lg: 12px;
 }
 
 * {
@@ -57,11 +64,12 @@ body {
 .main {
   display: grid;
   grid-template-columns: 280px 1fr;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto auto 1fr;
   grid-template-areas:
     "trends params"
     "sql sql"
-    "results plot";
+    "results results"
+    "plot plot";
   gap: 1rem;
   padding: 1rem;
   flex: 1;
@@ -69,10 +77,10 @@ body {
 
 .panel {
   background: var(--bg-panel);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   padding: 1.25rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
@@ -101,6 +109,17 @@ body {
 
 .plot-panel {
   grid-area: plot;
+  min-height: 200px;
+}
+
+.trend-select-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.trend-select-group .trend-select {
+  margin-bottom: 0;
 }
 
 .trend-select {
@@ -178,6 +197,9 @@ body {
 
 .sql-actions {
   margin-top: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .data-grid-container {
@@ -223,6 +245,141 @@ body {
   max-height: 280px;
 }
 
+.plot-actions {
+  margin-bottom: 0.75rem;
+}
+
+.plots-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.plot-card {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.plot-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.plot-card-title {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.plot-card-body {
+  padding: 1rem;
+  min-height: 200px;
+}
+
+.plot-card-body canvas {
+  max-height: 280px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.params-list {
+  margin-bottom: 0.5rem;
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.param-row-locked {
+  background: rgba(9, 105, 218, 0.06);
+  border: 1px solid rgba(9, 105, 218, 0.2);
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.param-row-locked .param-name {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.param-row-added {
+  background: var(--bg-dark);
+  border-radius: 4px;
+  margin-bottom: 0.25rem;
+}
+
+.param-badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.param-locked {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.param-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.param-add-row input,
+.param-add-row select {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.param-add-row input[type="text"]:first-of-type,
+.param-add-row select:first-of-type {
+  min-width: 160px;
+}
+
+.btn-add-param {
+  background: var(--accent);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-add-param:hover {
+  background: var(--accent-hover);
+}
+
+.btn-add-param:active {
+  transform: scale(0.98);
+}
+
+.params-added-list {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
 .btn {
   padding: 0.5rem 1rem;
   border: none;
@@ -257,6 +414,33 @@ body {
   background: var(--border);
 }
 
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-hover);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: 0;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  color: var(--accent-hover);
+}
+
 .error-msg {
   color: var(--error);
   font-size: 0.9rem;
@@ -270,6 +454,48 @@ body {
 
 .hidden {
   display: none !important;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: auto;
+  max-width: 360px;
+}
+
+.toast-show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.toast-success {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(26, 127, 55, 0.3);
+}
+
+.toast-error {
+  background: var(--error-bg);
+  color: var(--error);
+  border: 1px solid rgba(207, 34, 46, 0.3);
 }
 
 .modal {
@@ -286,14 +512,113 @@ body {
 .modal-content {
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   min-width: 400px;
   max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-tall {
+  height: 85vh;
+}
+
+.modal-wide {
+  min-width: 800px;
+}
+
+.modal-plot {
+  min-width: 420px;
 }
 
 .modal-content h3 {
   margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.plot-hint {
+  margin: -0.5rem 0 1rem 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.plot-cols-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: var(--bg-dark);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.plot-check-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.plot-check-label:hover {
+  color: var(--accent);
+}
+
+.plot-check-label input {
+  margin: 0;
+}
+
+.plot-series-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.plot-series-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 0.5rem;
+}
+
+.plot-series-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--bg-dark);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.plot-series-row .plot-series-label {
+  min-width: 0;
+}
+
+.plot-series-row select {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.plot-series-row .plot-series-remove {
+  padding: 0.25rem 0.5rem;
+  min-width: 32px;
 }
 
 .form-group {
@@ -323,6 +648,160 @@ body {
   gap: 0.75rem;
   justify-content: flex-end;
   margin-top: 1.25rem;
+}
+
+.builder-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.5rem;
+  height: calc(100% - 180px);
+  /* Adjust based on title and preview */
+  margin-bottom: 1rem;
+}
+
+.builder-list-box {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.builder-list-box.tall {
+  height: 300px;
+}
+
+.builder-sidebar .builder-list-box {
+  height: 345px;
+}
+
+.builder-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: 6px 6px 0 0;
+  margin-bottom: -1px;
+}
+
+.tab-btn.active {
+  border-color: var(--border) var(--border) var(--bg-panel);
+  color: var(--text);
+  background: var(--bg-panel);
+}
+
+.builder-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.col-header {
+  font-weight: 600;
+  padding: 0.5rem;
+  background: #eee;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+
+.col-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.col-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.join-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: #fdfdfd;
+  padding: 0.5rem;
+  border: 1px solid #efefef;
+  border-radius: 4px;
+}
+
+.join-row select {
+  font-size: 0.8rem;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.builder-columns {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.builder-columns-list {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* The .col-item rule is now defined above with more specific styles */
+/* .col-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+} */
+
+/* The .col-item:hover rule is now defined above with more specific styles */
+/* .col-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+} */
+
+.builder-preview-group textarea {
+  background: #f8f9fa;
+  font-family: 'Consolas', monospace;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.settings-params-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.setting-row span {
+  flex: 1;
+  font-size: 0.85rem;
 }
 
 @media (max-width: 900px) {
